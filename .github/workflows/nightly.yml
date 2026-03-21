@@ -26,8 +26,7 @@ jobs:
 
     - name: Install alex, happy
       run: |
-        cabal install happy
-        cabal install alex
+        cabal install alex happy --disable-tests
 
     - name: Install dependencies
       run: |
@@ -62,8 +61,7 @@ jobs:
         cabal update
     - name: Install alex, happy
       run: |
-        cabal install happy
-        cabal install alex
+        cabal install alex happy --disable-tests
     - name: Install dependencies
       run: |
           cabal build --dependencies-only -fembed_data_files -fnightly pandoc-cli
@@ -102,8 +100,7 @@ jobs:
         cabal update
     - name: Install alex, happy
       run: |
-        cabal install happy
-        cabal install alex
+        cabal install alex happy --disable-tests
     - name: Install dependencies
       run: |
           cabal build --dependencies-only -fnightly -fembed_data_files -fhttp pandoc-cli
