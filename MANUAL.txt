@@ -422,11 +422,12 @@ header when requesting a document from a URL:
     and output files, can be set using a defaults file.  The file will
     be searched for first in the working directory, and then in
     the `defaults` subdirectory of the user data directory
-    (see `--data-dir`).  The `.yaml` extension will be added if
-    *FILE* lacs an extension. See the section [Defaults files]
-    for more information on the file format. Settings from the
-    defaults file may be overridden or extended by subsequent
-    options on the command line.
+    (see `--data-dir`). If *FILE* lacks an extension, pandoc will
+    also try adding the `.yaml` extension if *FILE* is not found.
+    See the section [Defaults files] for more information on the
+    file format. Settings from the defaults file may be
+    overridden or extended by subsequent options on the command
+    line.
 
 `--bash-completion`
 
@@ -922,6 +923,12 @@ header when requesting a document from a URL:
     contents will appear at the end of the document. If you would
     prefer it to be at the beginning of the document, before the
     title, you can use `--pdf-engine=pdfroff`.
+
+    Because the entries in a table of contents need heading
+    identifiers to link to, this option forces the
+    [`auto_identifiers`](#extension-auto_identifiers) extension on
+    for the input format, even when it is off by default (as it is
+    for `typst`).
 
 `--toc-depth=`*NUMBER*
 
@@ -3673,7 +3680,7 @@ automatically assigned a unique identifier based on the heading text.
 This extension can be enabled/disabled for the following formats:
 
 input formats
-:  `markdown`, `latex`, `rst`, `mediawiki`, `textile`, `man`
+:  `markdown`, `latex`, `rst`, `mediawiki`, `textile`, `man`, `typst`
 
 output formats
 :  `markdown`, `muse`
