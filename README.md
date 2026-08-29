@@ -125,7 +125,7 @@ It can convert *to*
   codes](https://en.wikipedia.org/wiki/ANSI_escape_code), for terminal
   viewing)
 - `asciidoc` (modern [AsciiDoc](https://asciidoc.org/) as interpreted by
-  [AsciiDoctor](https://asciidoctor.org/))
+  [Asciidoctor](https://asciidoctor.org/))
 - `asciidoc_legacy` ([AsciiDoc](https://asciidoc.org/) as interpreted by
   [`asciidoc-py`](https://github.com/asciidoc-py/asciidoc-py)).
 - `asciidoctor` (deprecated synonym for `asciidoc`)
@@ -221,6 +221,7 @@ It can convert *to*
   Format](https://en.wikipedia.org/wiki/Rich_Text_Format))
 - `texinfo` ([GNU Texinfo](https://www.gnu.org/software/texinfo/))
 - `textile` ([Textile](https://textile-lang.com))
+- `t2t` ([txt2tags](https://txt2tags.org))
 - `slideous` ([Slideous](https://goessner.net/articles/slideous/) HTML
   and JavaScript slide show)
 - `slidy` ([Slidy](https://www.w3.org/Talks/Tools/Slidy2/) HTML and
