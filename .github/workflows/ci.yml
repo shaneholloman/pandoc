@@ -61,6 +61,9 @@ jobs:
           - ghc: '9.12'
             cabal: 'latest'
             cabalopts: '--ghc-option=-Werror'
+          - ghc: '9.12'
+            cabal: 'latest'
+            cabalopts: '--ghc-option=-Werror -f-embed_data_files'
 
     steps:
     - uses: actions/checkout@v7
@@ -172,7 +175,7 @@ jobs:
       with:
         path: |
           dist-newstyle
-        key: ${{ runner.os }}-stack-work-${{ hashFiles('cabal.project') }}-${{ secrets.CACHE_VERSION }}
+        key: ${{ runner.os }}-cabal-work-${{ hashFiles('cabal.project') }}-${{ secrets.CACHE_VERSION }}
 
     - name: Build and test
       run: |

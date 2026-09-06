@@ -77,7 +77,8 @@ import Text.Pandoc.Options
 import Text.Pandoc.Parsing (runParser, eof, defaultParserState,
                             anyOrderedListMarker)
 import Text.DocLayout
-import Text.Pandoc.Shared (stringify, makeSections, blocksToInlines)
+import Text.Pandoc.Shared (stringify, stringifyInlines, makeSections,
+                           blocksToInlines)
 import Text.Pandoc.Walk (Walkable(..))
 import qualified Text.Pandoc.UTF8 as UTF8
 import Text.Pandoc.XML (escapeStringForXML, rdfaAttributes, html5Attributes)
@@ -212,7 +213,7 @@ htmlAttrs (ident, classes, kvs) = addSpaceIfNotEmpty (hsep [
   ])
  where
    formatKey x = text . T.unpack $
-        if (x `Set.member` (html5Attributes <> rdfaAttributes)
+        if ((x `Set.member` html5Attributes || x `Set.member` rdfaAttributes)
             && x /= "label") -- #10048
              || T.any (== ':') x -- e.g. epub: namespace
              || "data-" `T.isPrefixOf` x
@@ -607,8 +608,8 @@ gridRow opts blocksToDoc = mapM renderCell
 lookupMetaBool :: Text -> Meta -> Bool
 lookupMetaBool key meta =
   case lookupMeta key meta of
-      Just (MetaBlocks _)  -> True
-      Just (MetaInlines _) -> True
+      Just (MetaBlocks bs)  -> not (null bs)
+      Just (MetaInlines ils) -> not (null ils)
       Just (MetaString x)  -> not (T.null x)
       Just (MetaBool True) -> True
       _                    -> False
@@ -646,7 +647,7 @@ lookupMetaString :: Text -> Meta -> Text
 lookupMetaString key meta =
   case lookupMeta key meta of
          Just (MetaString s)    -> s
-         Just (MetaInlines ils) -> stringify ils
+         Just (MetaInlines ils) -> stringifyInlines ils
          Just (MetaBlocks bs)   -> stringify bs
          Just (MetaBool b)      -> T.pack (show b)
          _                      -> ""
@@ -799,8 +800,9 @@ splitSentences = go . toList
   isSentenceEnding t =
     case T.unsnoc t of
       Just (t',c)
-        | c == '.' || c == '!' || c == '?'
+        | c == '.'
         , not (isInitial t') -> True
+        | c == '!' || c == '?' -> True
         | c == ')' || c == ']' || c == '"' || c == '\x201D' ->
            case T.unsnoc t' of
              Just (t'',d) -> d == '.' || d == '!' || d == '?' &&

@@ -25,7 +25,7 @@ import Control.Applicative ((<|>))
 import Control.Monad.Except (catchError)
 import Crypto.Hash (hashWith, SHA1(SHA1))
 import qualified Data.ByteString.Lazy as BL
-import Data.Char (isLetter, isSpace)
+import Data.Char (isSpace, isAlphaNum)
 import Text.Pandoc.Char (isCJK)
 import Data.Ord (comparing)
 import Data.String (fromString)
@@ -241,7 +241,7 @@ writeOpenXML opts (Pandoc meta blocks) = do
   let includeLOT = writerListOfTables opts || lookupMetaBool "lot" meta
   abstractTitle <- case lookupMeta "abstract-title" meta of
       Just (MetaBlocks bs)   -> pure $ stringify bs
-      Just (MetaInlines ils) -> pure $ stringify ils
+      Just (MetaInlines ils) -> pure $ stringifyInlines ils
       Just (MetaString s)    -> pure s
       _                      -> translateTerm Abstract
   abstract <-
@@ -995,10 +995,23 @@ inlineToOpenXML' opts (Image attr@(imgident, _, _) alt (src, title)) = do
         (xpt,ypt) = desiredSizeInPoints opts attr
                (either (const def) id (imageSize opts img))
         -- 12700 emu = 1 pt
-        pageWidthPt = case dimension Width attr of
-                        Just (Percent a) -> pageWidth * floor (a * 127)
-                        _                -> pageWidth * 12700
-        (xemu,yemu) = fitToPage (xpt * 12700, ypt * 12700) pageWidthPt
+        pageWidthPt = fromIntegral pageWidth
+        pageWidthEmu = pageWidth * 12700
+        (xpt', ypt') =
+          case (dimension Width attr, dimension Height attr) of
+                 (Just (Percent a), Just (Percent b))
+                   -> ((a / 100.0) * pageWidthPt, (b / 100.0) * pageWidthPt)
+                      -- note, should use pageHeightPt but we don't have this
+                      -- information.
+                 (Just (Percent a), _)
+                   -> ((a / 100.0) * pageWidthPt,
+                       (a / 100.0) * pageWidthPt * (ypt / xpt))
+                 (_, Just (Percent b))
+                   -> ((b / 100.0) * pageWidthPt * (xpt / ypt),
+                       (b / 100.0) * pageWidthPt)
+                 (_, _) -> (xpt, ypt)
+        (xemu,yemu) = fitToPage (xpt' * 12700,
+                                 ypt' * 12700) pageWidthEmu
         cNvPicPr = mknode "pic:cNvPicPr" [] $
                          mknode "a:picLocks" [("noChangeArrowheads","1")
                                              ,("noChangeAspect","1")] ()
@@ -1041,7 +1054,7 @@ inlineToOpenXML' opts (Image attr@(imgident, _, _) alt (src, title)) = do
               , mknode "wp:effectExtent"
                 [("b","0"),("l","0"),("r","0"),("t","0")] ()
               , mknode "wp:docPr"
-                [ ("descr", stringify alt)
+                [ ("descr", stringifyInlines alt)
                 , ("title", title)
                 , ("id", docprid)
                 , ("name","Picture")
@@ -1127,14 +1140,18 @@ wrapBookmark ident contents = do
   return $ Elem bookmarkStart : contents ++ [Elem bookmarkEnd]
 
 -- Word imposes a 40 character limit on bookmark names and requires
--- that they begin with a letter.  So we just use a hash of the
--- identifier when otherwise we'd have an illegal bookmark name.
+-- that they begin with a letter or @_@ and contain only letters,
+-- numbers or underscores. Bookmarks beginning with @_@ are
+-- hidden in the user interface (and in particular hidden from screen
+-- readers, which we want); these are to be used for cross-references.
+-- When the id is otherwise illegal we use a hash of the identifier.
 toBookmarkName :: Text -> Text
 toBookmarkName s
-  | Just (c, _) <- T.uncons s
-  , isLetter c
-  , T.length s <= 40 = s
-  | otherwise = T.pack $ 'X' : drop 1 (show (hashWith SHA1 (fromText s)))
+  | T.length s < 40
+  , T.all (\c -> isAlphaNum c || c == '_') s
+    = "_" <> s
+  | otherwise = "_" <> T.pack (drop 1 (show (hashWith SHA1 (fromText s))))
+  -- we drop 1 because a SHA1 is 40 characters and we need room for the `_`
 
 maxListLevel :: Int
 maxListLevel = 8

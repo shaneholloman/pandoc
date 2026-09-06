@@ -819,7 +819,7 @@ blockQuote = do
     (do guardEnabled Ext_alerts
         case raw of
           (t:ts) | "[!" `T.isPrefixOf` t ->
-              case T.strip t of
+              case T.toUpper (T.strip t) of
                 "[!TIP]" -> pure (Just "tip", ts)
                 "[!WARNING]" -> pure (Just "warning", ts)
                 "[!IMPORTANT]" -> pure (Just "important", ts)
@@ -834,7 +834,7 @@ blockQuote = do
     case mbAlert of
       Nothing -> B.blockQuote <$> contents
       Just alert ->
-        (B.divWith ("", [alert], [])
+        (B.divWith ("", ["alert", alert], [])
           . (B.divWith ("", ["title"], []) (B.para (B.str (T.toTitle alert))) <>))
            <$> contents
 
@@ -1872,13 +1872,21 @@ source = do
 
 base64DataURI :: PandocMonad m => ParsecT Sources s m Text
 base64DataURI = do
-  Sources ((pos, txt):rest) <- getInput
-  let r = A.parse (fst <$> A.match pBase64DataURI) txt
-  case r of
-    A.Done remaining consumed -> do
-      let pos' = incSourceColumn pos (T.length consumed)
-      setInput $ Sources ((pos', remaining):rest)
-      return consumed
+  inp <- getInput
+  case inp of
+    Sources ((pos, txt):rest) ->
+      -- feed mempty to force a result if attoparsec returns Partial:
+      case A.feed (A.parse (fst <$> A.match pBase64DataURI) txt) mempty of
+        A.Done remaining consumed -> do
+          -- keep the chunk's position unchanged: chunk positions are
+          -- invariant (see uncons in T.P.Sources), and withRaw's
+          -- sourcesDifference relies on this.  Instead, advance parsec's
+          -- own position (a data URI cannot contain newlines):
+          setInput $ Sources ((pos, remaining):rest)
+          curPos <- getPosition
+          setPosition $ incSourceColumn curPos (T.length consumed)
+          return consumed
+        _ -> mzero
     _ -> mzero
 
 linkTitle :: PandocMonad m => MarkdownParser m Text
