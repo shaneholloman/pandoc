@@ -49,6 +49,7 @@ import Text.Pandoc.Logging (LogMessage(..))
 import qualified Text.Pandoc.UTF8 as UTF8
 import Text.Collate.Lang (Lang(..), parseLang)
 import Text.Printf (printf)
+import Text.Read (readMaybe)
 import Data.Char (isDigit)
 import Data.Maybe (fromMaybe)
 import Unicode.Char (isXIDContinue)
@@ -396,15 +397,29 @@ blockToTypst block =
                           $$ ")" $$ lab $$ blankline
     Div (ident,_,_) (Header lev ("",cls,kvs) ils:rest) ->
       blocksToTypst (Header lev (ident,cls,kvs) ils:rest)
-    Div (ident,_,kvs) blocks -> do
+    Div (ident,cls,kvs) blocks -> do
       let lab = case lookup "typst-label" kvs of
                   Just l -> toLabel FreestandingLabel l
                   Nothing -> toLabel FreestandingLabel ident
       let (typstAttrs,typstTextAttrs) = pickTypstAttrs kvs
+      let hangingIndent = "hanging-indent" `elem` cls
+      let (mbEntrySpacing :: Maybe Int) = lookup "entry-spacing" kvs
+                                            >>= readMaybe . T.unpack
+      let cslProperties = if "csl-bib-body" `elem` cls
+                             then literal $
+                                  "#set par(" <>
+                                   (T.intercalate ", " $
+                                     [ "hanging-indent: 1.5em" | hangingIndent ]
+                                     ++ maybe []
+                                        (\x -> ["spacing: " <> tshow x <> "em"])
+                                        mbEntrySpacing
+                                   ) <> ")"
+                             else mempty
       contents <- blocksToTypst blocks
       return $ "#block" <> toTypstPropsListParens typstAttrs <> "["
+        $$ cslProperties
         $$ toTypstPoundSetText typstTextAttrs
-        $$ chomp contents
+        $$ contents
         $$ ("]" <+> lab)
 
 defListItemToTypst :: PandocMonad m => ([Inline], [[Block]]) -> TW m (Doc Text)
@@ -412,7 +427,7 @@ defListItemToTypst (term, defns) = do
   modify $ \st -> st{ stEscapeContext = TermContext }
   term' <- inlinesToTypst term
   modify $ \st -> st{ stEscapeContext = NormalContext }
-  defns' <- mapM (fmap chomp . blocksToTypst) defns
+  defns' <- mapM blocksToTypst defns
   return $
     case defns of
       [[Plain _]] -> hang 4 (nowrap ("/ " <> term' <> ": ")) (vcat defns')
